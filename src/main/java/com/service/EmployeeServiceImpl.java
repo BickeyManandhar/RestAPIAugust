@@ -1,5 +1,6 @@
 package com.service;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -13,6 +14,7 @@ import com.dao.MagicDaoRepository;
 import com.dto.EmployeeDTO;
 import com.dto.ResponseDTO;
 import com.entity.EmployeeEntity;
+import com.exception.DuplicateEmailException;
 
 @Service
 @Transactional
@@ -21,11 +23,58 @@ public class EmployeeServiceImpl implements EmployeeService {
 	@Autowired
 	MagicDaoRepository magicDaoRepository;
 
+//	@Override
+//	public void registerEmployee(EmployeeDTO employeeDTO) {
+//		EmployeeEntity empEntity = new EmployeeEntity();
+//		BeanUtils.copyProperties(employeeDTO, empEntity);
+//		try {
+//			//this is for image
+//			//we are setting tempPhoto using multipart file(converted into bytes)
+//			if(empEntity.getFile()!=null) {
+//			empEntity.setTempPhoto(empEntity.getFile().getBytes());
+//			}
+//		}
+//		catch(IOException e) {
+//			e.printStackTrace();
+//		}
+//		try {
+//		magicDaoRepository.saveAndFlush(empEntity);
+//		//magicDaoRepository.save(empEntity);
+//		}
+//		catch(Exception e) {
+//			throw new DuplicateEmailException("Email already exist in database.");
+//		}
+//	}
+
 	@Override
+	@Transactional
 	public void registerEmployee(EmployeeDTO employeeDTO) {
-		EmployeeEntity empEntity = new EmployeeEntity();
-		BeanUtils.copyProperties(employeeDTO, empEntity);
-		magicDaoRepository.save(empEntity);
+	    // Check if an employee with the same email already exists
+		List<EmployeeEntity> existingEmployees = magicDaoRepository.findByEmailId(employeeDTO.getEmailId());
+	    
+	    if (!existingEmployees.isEmpty()) {
+	        throw new DuplicateEmailException("Email already exists in the database.");
+	    }
+
+	    else {
+	    // If not, proceed with saving the new employee
+	    EmployeeEntity empEntity = new EmployeeEntity();
+	    BeanUtils.copyProperties(employeeDTO, empEntity);
+	    try {
+	        // This is for image
+	        // We are setting tempPhoto using multipart file (converted into bytes)
+	        if (empEntity.getFile() != null) {
+	            empEntity.setTempPhoto(empEntity.getFile().getBytes());
+	        }
+	    } catch (IOException e) {
+	        e.printStackTrace();
+	    }
+	    try {
+	        magicDaoRepository.saveAndFlush(empEntity);
+	    } catch (Exception e) {
+	    	//throw new RegistrationFailedException("Registration failed due to an internal error.");
+	    }
+	    }
 	}
 
 	@Override
@@ -115,19 +164,43 @@ public class EmployeeServiceImpl implements EmployeeService {
 		return employeeDtoList;
 	}
 
-//	@Override
-//	public EmployeeDTO editUser(EmployeeDTO employeeDTO, int employeeId) {
-//		 if (magicDaoRepository.existsById(employeeId)) {
-//		        Optional<EmployeeEntity> optionalEmployeeEntity = magicDaoRepository.findById(employeeId);
-//		        if (optionalEmployeeEntity.isPresent()) {
-//		            EmployeeEntity employeeEntity = optionalEmployeeEntity.get();
-//		            // Copy properties from employeeDTO to the existing employeeEntity
-//		            BeanUtils.copyProperties(employeeDTO, employeeEntity);
-//		            employeeEntity = magicDaoRepository.save(employeeEntity);
-//		        }
-//		    }
-//		    return employeeDTO;
-//		
-//	}
+	@Override
+	public List<EmployeeDTO> searchByEmployeeName(String name) {
+		List<EmployeeEntity> employeeEntityList = magicDaoRepository.searchByEmployeeName(name);
+		List<EmployeeDTO> employeeDtoList = new ArrayList<>();
+		if (employeeEntityList.size() > 0) {
+
+			for (EmployeeEntity tempVar : employeeEntityList) {
+
+				EmployeeDTO employeeDTO = new EmployeeDTO();
+				BeanUtils.copyProperties(tempVar, employeeDTO);
+
+				employeeDtoList.add(employeeDTO);
+
+			}
+
+		}
+		return employeeDtoList;
+	}
+
+	@Override
+	public List<EmployeeDTO> searchBySalaryRange(int minSalary, int maxSalary) {
+		List<EmployeeEntity> employeeEntityList = magicDaoRepository.searchBySalaryRange(minSalary, maxSalary);
+		List<EmployeeDTO> employeeDtoList = new ArrayList<>();
+		if (employeeEntityList.size() > 0) {
+
+			for (EmployeeEntity tempVar : employeeEntityList) {
+
+				EmployeeDTO employeeDTO = new EmployeeDTO();
+				BeanUtils.copyProperties(tempVar, employeeDTO);
+
+				employeeDtoList.add(employeeDTO);
+
+			}
+
+		}
+		return employeeDtoList;
+	}
+
 
 }

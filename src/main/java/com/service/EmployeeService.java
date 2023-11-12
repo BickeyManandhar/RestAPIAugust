@@ -23,6 +23,10 @@ public interface EmployeeService {
 	List<EmployeeDTO> deleteEmployee(int employeeId);
 
 	//EmployeeDTO editUser(EmployeeDTO employeeDTO, int employeeId);
+	
+	List<EmployeeDTO> searchByEmployeeName(String name);
+	
+	List<EmployeeDTO> searchBySalaryRange(int minSalary, int maxSalary);
 
 
 

@@ -1,15 +1,14 @@
 package com.controllers;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
-
-
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
-import javax.validation.Valid;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,44 +24,64 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import com.SpringBootRunner;
 import com.dto.EmployeeDTO;
 import com.dto.ResponseDTO;
 import com.exception.UserDoesNotExist;
 import com.service.EmployeeService;
 
-
-@RequestMapping("/api/v3")
-@RestController
-public class FrontController3 {
-	private static final Logger logger = LoggerFactory.getLogger(SpringBootRunner.class);
+@RequestMapping("/api/v4")
+@Controller
+public class FrontController4 {
 
 	@Autowired
 	EmployeeService employeeService;
 
 	@GetMapping("/employee")
-	public ResponseEntity<?> showAll() {
-		return new ResponseEntity<>(employeeService.showAll(), HttpStatus.OK);
-	}
-	
-	//@Valid is used for server side validation
-	@PostMapping("/employee")
-	public ResponseEntity<String> registerEmployee(@Valid @RequestBody EmployeeDTO employeeDTO) {
-		logger.info("Inside PostMapping: {}",employeeDTO);
-		//RequestBody if we are sending JSON data from postman
-		//ModelAttribute if we are working with java classes (DTO) within out project
-		employeeService.registerEmployee(employeeDTO);
-		return new ResponseEntity<>("Registration Successful.", HttpStatus.CREATED);
+	public String showAll(Model model) {
+		List<EmployeeDTO> listEmployeeDTO = employeeService.showAll();
+		List<EmployeeDTO> listOfEmployeeDTOWithPhoto = new ArrayList<>();
+		for (EmployeeDTO empDTO : listEmployeeDTO) {
+			byte[] photoInByteArray = empDTO.getTempPhoto();
+			if (empDTO.getTempPhoto() != null) {
+				byte[] photoEncodedInBase64 = Base64.getEncoder().encode(photoInByteArray);
+
+				try {
+					String photoEncodedInBase64String = new String(photoEncodedInBase64, "UTF-8");
+					empDTO.setPhoto(photoEncodedInBase64String);
+					listOfEmployeeDTOWithPhoto.add(empDTO);
+				} catch (UnsupportedEncodingException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		model.addAttribute("listEmployeeDTO", listOfEmployeeDTOWithPhoto);
+		return "employee";
+
 	}
 
-	
+	@GetMapping("/registerEmployeePage")
+	public String registerEmployeePage(Model model) {
+		return "employeeRegistrationPage";
+	}
+
+	@PostMapping("/employee")
+	public String registerEmployee(@ModelAttribute EmployeeDTO employeeDTO, HttpServletRequest httpServletRequest) {
+		// RequestBody if we are sending JSON data from postman
+		// ModelAttribute if we are working with java classes (DTO) within out project
+		employeeService.registerEmployee(employeeDTO);
+		HttpSession session = httpServletRequest.getSession();
+		session.setAttribute("registrationSuccess", "Registration Successful.");
+		return "redirect:/api/v4/employee";
+	}
 
 	// use @Query in dao
 	@GetMapping("/employee/searchByName/{employeeName}")
 	public ResponseEntity<?> searchByEmployeeName(@PathVariable String employeeName) {
-		if (employeeService.searchByEmployeeName(employeeName) != null && !employeeService.searchByEmployeeName(employeeName).isEmpty()) {
+		if (employeeService.searchByEmployeeName(employeeName) != null
+				&& !employeeService.searchByEmployeeName(employeeName).isEmpty()) {
 			return new ResponseEntity<>(employeeService.searchByEmployeeName(employeeName), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<>("No employee with provided name is found.", HttpStatus.NOT_FOUND);
@@ -73,7 +92,8 @@ public class FrontController3 {
 	// use @Query in dao
 	@GetMapping("/employee/searchBySalary/{minSalary}/{maxSalary}")
 	public ResponseEntity<?> searchBySalaryRange(@PathVariable int minSalary, @PathVariable int maxSalary) {
-		if (employeeService.searchBySalaryRange(minSalary, maxSalary) != null && !employeeService.searchBySalaryRange(minSalary, maxSalary).isEmpty()) {
+		if (employeeService.searchBySalaryRange(minSalary, maxSalary) != null
+				&& !employeeService.searchBySalaryRange(minSalary, maxSalary).isEmpty()) {
 			return new ResponseEntity<>(employeeService.searchBySalaryRange(minSalary, maxSalary), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<>("No employee with provided salary is found.", HttpStatus.NOT_FOUND);
@@ -113,7 +133,6 @@ public class FrontController3 {
 		return new ResponseEntity<>("Edit operation failed.", HttpStatus.BAD_REQUEST);
 
 	}
-
 
 	@DeleteMapping("/employee/{employeeId}")
 	public ResponseEntity<?> deleteEmployee(@PathVariable int employeeId) {
